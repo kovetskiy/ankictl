@@ -43,3 +43,9 @@ password = "fl4t-c1rcl3"
 ```
 go get github.com/kovetskiy/ankictl
 ```
+
+Arch Linux users can install package from aur:
+
+```
+yaourt -Sy ankictl-git
+```
