@@ -3,7 +3,9 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/docopt/docopt-go"
@@ -31,6 +33,8 @@ Options:
                          [default: $HOME/.config/anki/anki.conf]
   -k --cookies <path>   Use specified path for storing cookies.
                          [default: $HOME/.cache/anki/anki.cookies]
+  --stop-streak <n>     Stop adding words when found streak
+                         of <n> words already added.
   --debug               Show debug messages.
   --trace               Show trace and debug messages.
   -h --help             Show this screen.
@@ -86,6 +90,12 @@ func main() {
 		log.Fatal(karma.Format(err, "unable to login to ankiweb"))
 	}
 
+	var (
+		maxStreak, _ = strconv.Atoi(args["--stop-streak"].(string))
+		nowStreak    = 0
+		newWords     = 0
+	)
+
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		target := scanner.Text()
@@ -98,21 +108,37 @@ func main() {
 			log.Fatal(err)
 		}
 
-		exists, err := anki.Search(front)
+		found, err := anki.Search(front)
 		if err != nil {
 			log.Fatal(karma.Format(err, "unable to search %q", front))
 		}
 
-		if exists {
+		if found {
 			log.Debugf("%q is already exists", front)
+
+			nowStreak++
+
+			if nowStreak == maxStreak {
+				log.Debugf("got streak of existing words, stopping")
+				break
+			}
+
 			continue
 		}
+
+		nowStreak = 0
+
+		log.Debugf("adding %q: %q", front, back)
 
 		err = anki.Add(args["--add"].(string), front, back)
 		if err != nil {
 			log.Fatal(karma.Format(err, "unable to add %q: %q", front, back))
 		}
+
+		newWords++
 	}
+
+	fmt.Printf("%d new words\n", newWords)
 
 	err = anki.SaveCookies(args["--cookies"].(string))
 	if err != nil {

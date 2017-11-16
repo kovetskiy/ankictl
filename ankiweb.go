@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/kovetskiy/biscuitjar"
 	"github.com/reconquest/karma-go"
@@ -223,6 +224,12 @@ func (anki *Anki) Add(deck, front, back string) error {
 		)
 	}
 
+	if response.StatusCode == http.StatusTooManyRequests {
+		log.Debugf("got too many requests error, sleeping 3 seconds")
+		time.Sleep(time.Second * 3)
+		return anki.Add(deck, front, back)
+	}
+
 	log.Debugf("%s status: %s", URLEditSave, response.Status)
 
 	log.Tracef("%s response: %s", URLEditSave, readall(response.Body))
@@ -315,6 +322,21 @@ func (anki *Anki) Search(query string) (bool, error) {
 		)
 	}
 
+	log.Debugf("%s status: %s", URLSearch, response.Status)
+
+	if response.StatusCode == http.StatusTooManyRequests {
+		log.Debugf("got too many requests error, sleeping 3 seconds")
+		time.Sleep(time.Second * 3)
+		return anki.Search(query)
+	}
+
+	if response.StatusCode != http.StatusOK {
+		return false, context.Format(nil,
+			"server returned %s status, but 200 OK expected",
+			response.Status,
+		)
+	}
+
 	contents, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		return false, context.Format(
@@ -322,8 +344,6 @@ func (anki *Anki) Search(query string) (bool, error) {
 			"unable to read response body",
 		)
 	}
-
-	log.Debugf("%s status: %s", URLSearch, response.Status)
 
 	log.Tracef("%s response: %s", URLSearch, contents)
 
