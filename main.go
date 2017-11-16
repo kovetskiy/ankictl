@@ -81,19 +81,9 @@ func main() {
 		log.Fatal(karma.Format(err, "unable to initialize client"))
 	}
 
-	var authorized bool
-	if anki.cookiesExists {
-		authorized, err = anki.IsAuthorized()
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-
-	if !authorized {
-		err = anki.Login(config.Email, config.Password)
-		if err != nil {
-			log.Fatal(karma.Format(err, "unable to login to ankiweb"))
-		}
+	err = anki.Login(config.Email, config.Password)
+	if err != nil {
+		log.Fatal(karma.Format(err, "unable to login to ankiweb"))
 	}
 
 	scanner := bufio.NewScanner(os.Stdin)

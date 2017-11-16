@@ -13,7 +13,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/PuerkitoBio/goquery"
 	"github.com/kovetskiy/biscuitjar"
 	"github.com/reconquest/karma-go"
 )
@@ -31,8 +30,9 @@ const (
 )
 
 var (
-	reToken = regexp.MustCompile("editor.csrf_token2 = '([^']+)';")
-	reItem  = regexp.MustCompile(`<td> ([^/]+)`)
+	reTokenEdit  = regexp.MustCompile("editor.csrf_token2 = '([^']+)';")
+	reTokenLogin = regexp.MustCompile(`name="csrf_token" value="([^"]+)`)
+	reItem       = regexp.MustCompile(`<td> ([^/]+)`)
 )
 
 type Anki struct {
@@ -107,24 +107,27 @@ func (anki *Anki) Login(email, password string) error {
 		)
 	}
 
-	doc, err := goquery.NewDocumentFromReader(response.Body)
+	if response.StatusCode == http.StatusFound {
+		log.Debugf("status is %s, already authorized", response.Status)
+		return nil
+	}
+
+	contents, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		return karma.Format(
 			err,
-			"unable to create html reader",
+			"unable to read response",
 		)
 	}
 
-	var token string
-	doc.Find(`input[name="csrf_token"]`).Each(
-		func(_ int, selection *goquery.Selection) {
-			token, _ = selection.Attr("value")
-		},
-	)
+	log.Tracef("%s response: %s", URLLogin, string(contents))
 
-	if token == "" {
-		return errors.New("unable to find token: empty tag value")
+	matches := reTokenLogin.FindStringSubmatch(string(contents))
+	if len(matches) != 2 {
+		return errors.New("unable to find token by regexp")
 	}
+
+	token := matches[1]
 
 	payload := url.Values{}
 	payload.Set("username", email)
@@ -264,7 +267,7 @@ func (anki *Anki) prepareAdd() error {
 		)
 	}
 
-	matches := reToken.FindStringSubmatch(string(contents))
+	matches := reTokenEdit.FindStringSubmatch(string(contents))
 	if len(matches) != 2 {
 		return errors.New("unable to find csrf_token")
 	}
@@ -332,22 +335,6 @@ func (anki *Anki) Search(query string) (bool, error) {
 	}
 
 	return false, nil
-}
-
-func (anki *Anki) IsAuthorized() (bool, error) {
-	log.Debugf("requesting %s", URLCheckCookie)
-
-	response, err := anki.client.Get(URLCheckCookie)
-	if err != nil {
-		return false, karma.Describe("url", URLCheckCookie).Format(
-			err,
-			"unable to request check page",
-		)
-	}
-
-	log.Debugf("%s status %s", URLCheckCookie, response.Status)
-
-	return response.StatusCode == http.StatusFound, nil
 }
 
 func (anki *Anki) SaveCookies(path string) error {
