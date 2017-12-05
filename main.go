@@ -35,6 +35,7 @@ Options:
                          [default: $HOME/.cache/anki/anki.cookies]
   --stop-streak <n>     Stop adding words when found streak
                          of <n> words already added.
+                         [default: 10]
   --debug               Show debug messages.
   --trace               Show trace and debug messages.
   -h --help             Show this screen.
