@@ -24,8 +24,8 @@ const (
 	UserAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36"
 
 	URLLogin       = "https://ankiweb.net/account/login"
-	URLEdit        = "https://ankiweb.net/edit/"
-	URLEditSave    = "https://ankiweb.net/edit/save"
+	URLEdit        = "https://ankiuser.net/edit/"
+	URLEditSave    = "https://ankiuser.net/edit/save"
 	URLCheckCookie = "https://ankiweb.net/account/checkCookie"
 	URLSearch      = "https://ankiweb.net/search/"
 )
@@ -41,7 +41,8 @@ type Anki struct {
 	cookiesExists bool
 	client        *http.Client
 
-	token string // csrf token
+	adding bool
+	token  string // csrf token
 }
 
 func NewAnki(cookies string) (*Anki, error) {
@@ -80,6 +81,10 @@ func NewAnki(cookies string) (*Anki, error) {
 	anki.client = &http.Client{
 		Jar: jar,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if anki.adding {
+				return nil
+			}
+
 			return http.ErrUseLastResponse
 		},
 	}
@@ -244,7 +249,24 @@ func (anki *Anki) Add(deck, front, back string) error {
 	return nil
 }
 
+func checkStatus(response *http.Response) error {
+	if response.StatusCode == http.StatusFound {
+		return fmt.Errorf(
+			"%s redirected to %s",
+			response.Request.URL.String(),
+			response.Header.Get("Location"),
+		)
+	}
+
+	return nil
+}
+
 func (anki *Anki) prepareAdd() error {
+	anki.adding = true
+	defer func() {
+		anki.adding = false
+	}()
+
 	context := karma.Describe("url", URLEdit)
 
 	request, err := http.NewRequest("GET", URLEdit, nil)
@@ -264,6 +286,15 @@ func (anki *Anki) prepareAdd() error {
 			err,
 			"unable to request adding page",
 		)
+	}
+
+	err = checkStatus(response)
+	if err != nil {
+		return context.Reason(err)
+	}
+
+	if response.StatusCode != http.StatusOK {
+		return context.Format(response.Status, "expected status is 200 OK")
 	}
 
 	contents, err := ioutil.ReadAll(response.Body)
@@ -328,6 +359,11 @@ func (anki *Anki) Search(query string) (bool, error) {
 		log.Debugf("got too many requests error, sleeping 3 seconds")
 		time.Sleep(time.Second * 3)
 		return anki.Search(query)
+	}
+
+	err = checkStatus(response)
+	if err != nil {
+		return false, context.Reason(err)
 	}
 
 	if response.StatusCode != http.StatusOK {
