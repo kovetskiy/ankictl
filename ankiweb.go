@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	DefaultDeckModelID = "1510000287133"
+	DefaultDeckModelID = "1570785428561"
 
 	UserAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36"
 
@@ -304,6 +304,8 @@ func (anki *Anki) prepareAdd() error {
 			"unable to read response body",
 		)
 	}
+
+	log.Tracef("%s response: %s", URLSearch, contents)
 
 	matches := reTokenEdit.FindStringSubmatch(string(contents))
 	if len(matches) != 2 {
