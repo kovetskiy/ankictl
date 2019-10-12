@@ -19,8 +19,6 @@ import (
 )
 
 const (
-	DefaultDeckModelID = "1570785428561"
-
 	UserAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36"
 
 	URLLogin       = "https://ankiweb.net/account/login"
@@ -31,6 +29,7 @@ const (
 )
 
 var (
+	reModelID    = regexp.MustCompile("editor.curModelID = \"([0-9]+)\";")
 	reTokenEdit  = regexp.MustCompile("editor.csrf_token2 = '([^']+)';")
 	reTokenLogin = regexp.MustCompile(`name="csrf_token" value="([^"]+)`)
 	reItem       = regexp.MustCompile(`<td> ([^/]+)`)
@@ -41,8 +40,9 @@ type Anki struct {
 	cookiesExists bool
 	client        *http.Client
 
-	adding bool
-	token  string // csrf token
+	adding  bool
+	token   string // csrf token
+	modelID string
 }
 
 func NewAnki(cookies string) (*Anki, error) {
@@ -179,14 +179,12 @@ func (anki *Anki) Login(email, password string) error {
 }
 
 func (anki *Anki) Add(deck, front, back string) error {
-	if anki.token == "" {
-		err := anki.prepareAdd()
-		if err != nil {
-			return karma.Format(
-				err,
-				"unable to prepare for adding",
-			)
-		}
+	err := anki.prepareAdd()
+	if err != nil {
+		return karma.Format(
+			err,
+			"unable to prepare for adding",
+		)
 	}
 
 	context := karma.Describe("url", URLEditSave)
@@ -195,7 +193,7 @@ func (anki *Anki) Add(deck, front, back string) error {
 
 	payload := url.Values{}
 	payload.Set("csrf_token", anki.token)
-	payload.Set("mid", DefaultDeckModelID)
+	payload.Set("mid", anki.modelID)
 	payload.Set("deck", deck)
 	payload.Set("data", data)
 
@@ -305,7 +303,7 @@ func (anki *Anki) prepareAdd() error {
 		)
 	}
 
-	log.Tracef("%s response: %s", URLSearch, contents)
+	log.Tracef("%s response: %s", URLEdit, contents)
 
 	matches := reTokenEdit.FindStringSubmatch(string(contents))
 	if len(matches) != 2 {
@@ -313,6 +311,13 @@ func (anki *Anki) prepareAdd() error {
 	}
 
 	anki.token = matches[1]
+
+	matches = reModelID.FindStringSubmatch(string(contents))
+	if len(matches) != 2 {
+		return errors.New("unable to find model id")
+	}
+
+	anki.modelID = matches[1]
 
 	return nil
 }
