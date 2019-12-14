@@ -100,44 +100,15 @@ func main() {
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		target := scanner.Text()
-		if target == "" {
-			continue
+
+		addNewWords(target, &nowStreak, &newWords, anki, args)
+
+		if nowStreak == maxStreak {
+			log.Debugf("got streak of existing words, stopping")
+			break
 		}
-
-		front, back, err := getFrontBack(target, args["--format"].(string))
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		found, err := anki.Search(front)
-		if err != nil {
-			log.Fatal(karma.Format(err, "unable to search %q", front))
-		}
-
-		if found {
-			log.Debugf("%q is already exists", front)
-
-			nowStreak++
-
-			if nowStreak == maxStreak {
-				log.Debugf("got streak of existing words, stopping")
-				break
-			}
-
-			continue
-		}
-
-		nowStreak = 0
-
-		log.Debugf("adding %q: %q", front, back)
-
-		err = anki.Add(args["--add"].(string), front, back)
-		if err != nil {
-			log.Fatal(karma.Format(err, "unable to add %q: %q", front, back))
-		}
-
-		newWords++
 	}
+
 
 	fmt.Printf("%d new words\n", newWords)
 
@@ -149,6 +120,41 @@ func main() {
 			),
 		)
 	}
+}
+
+func addNewWords(target string, nowStreak *int, newWords *int, anki *Anki, args map[string]interface{}) (error) {
+	if target == "" {
+		return nil
+	}
+
+	front, back, err := getFrontBack(target, args["--format"].(string))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	found, err := anki.Search(front)
+	if err != nil {
+		log.Fatal(karma.Format(err, "unable to search %q", front))
+	}
+
+	if found {
+		log.Debugf("%q is already exists", front)
+		*nowStreak++
+		return nil
+	}
+
+	*nowStreak = 0
+
+	log.Debugf("adding %q: %q", front, back)
+
+	err = anki.Add(args["--add"].(string), front, back)
+	if err != nil {
+		log.Fatal(karma.Format(err, "unable to add %q: %q", front, back))
+	}
+
+	*newWords++
+
+	return nil
 }
 
 func getFrontBack(target string, format string) (string, string, error) {
