@@ -23,12 +23,15 @@ ankiweb.net command line interface.
 
 Usage:
   ankictl [options] -A <deck>
+  ankictl [options] -A <deck> -i <input>
   ankictl -h | --help
   ankictl --version
 
 Options:
   -A --add <deck>       Add cards into deck.
   -f --format <format>  Format of input. Can be text or json. [default: text]
+  -i --input <input>    Input value in json format.
+                        Input is enclosed in ''.
   -c --config <path>    Use specified configuration file.
                          [default: $HOME/.config/anki/anki.conf]
   -k --cookies <path>   Use specified path for storing cookies.
@@ -97,15 +100,22 @@ func main() {
 		newWords     = 0
 	)
 
-	scanner := bufio.NewScanner(os.Stdin)
-	for scanner.Scan() {
-		target := scanner.Text()
-
+	if val := args["--input"]; val != nil {
+		args["--format"] = "json"
+		target := val.(string)
 		addNewWords(target, &nowStreak, &newWords, anki, args)
 
-		if nowStreak == maxStreak {
-			log.Debugf("got streak of existing words, stopping")
-			break
+	} else {
+		scanner := bufio.NewScanner(os.Stdin)
+		for scanner.Scan() {
+			target := scanner.Text()
+
+			addNewWords(target, &nowStreak, &newWords, anki, args)
+
+			if nowStreak == maxStreak {
+				log.Debugf("got streak of existing words, stopping")
+				break
+			}
 		}
 	}
 
