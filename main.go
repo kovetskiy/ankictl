@@ -100,7 +100,7 @@ func main() {
 		newWords     = 0
 	)
 
-	if target, ok := args["--input"].(string); ok{
+	if target, ok := args["--input"].(string); ok {
 		args["--format"] = "json"
 		err = addNewWords(target, args["--format"].(string), args["--add"].(string), &nowStreak, &newWords, anki)
 		if err != nil {
@@ -124,7 +124,6 @@ func main() {
 		}
 	}
 
-
 	fmt.Printf("%d new words\n", newWords)
 
 	err = anki.SaveCookies(args["--cookies"].(string))
@@ -137,7 +136,7 @@ func main() {
 	}
 }
 
-func addNewWords(target string, format string, deck string, nowStreak *int, newWords *int, anki *Anki) (error) {
+func addNewWords(target string, format string, deck string, nowStreak *int, newWords *int, anki *Anki) error {
 	if target == "" {
 		return nil
 	}
