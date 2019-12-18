@@ -23,12 +23,15 @@ ankiweb.net command line interface.
 
 Usage:
   ankictl [options] -A <deck>
+  ankictl [options] -A <deck> -i <input>
   ankictl -h | --help
   ankictl --version
 
 Options:
   -A --add <deck>       Add cards into deck.
   -f --format <format>  Format of input. Can be text or json. [default: text]
+  -i --input <input>    Input value in json format.
+                        Input is enclosed in ''.
   -c --config <path>    Use specified configuration file.
                          [default: $HOME/.config/anki/anki.conf]
   -k --cookies <path>   Use specified path for storing cookies.
@@ -97,46 +100,28 @@ func main() {
 		newWords     = 0
 	)
 
-	scanner := bufio.NewScanner(os.Stdin)
-	for scanner.Scan() {
-		target := scanner.Text()
-		if target == "" {
-			continue
-		}
-
-		front, back, err := getFrontBack(target, args["--format"].(string))
+	if target, ok := args["--input"].(string); ok {
+		args["--format"] = "json"
+		err = addNewWords(target, args["--format"].(string), args["--add"].(string), &nowStreak, &newWords, anki)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal(karma.Format(err, "unable to add new words"))
 		}
 
-		found, err := anki.Search(front)
-		if err != nil {
-			log.Fatal(karma.Format(err, "unable to search %q", front))
-		}
+	} else {
+		scanner := bufio.NewScanner(os.Stdin)
+		for scanner.Scan() {
+			target := scanner.Text()
 
-		if found {
-			log.Debugf("%q is already exists", front)
-
-			nowStreak++
+			err = addNewWords(target, args["--format"].(string), args["--add"].(string), &nowStreak, &newWords, anki)
+			if err != nil {
+				log.Fatal(karma.Format(err, "unable to add new words"))
+			}
 
 			if nowStreak == maxStreak {
 				log.Debugf("got streak of existing words, stopping")
 				break
 			}
-
-			continue
 		}
-
-		nowStreak = 0
-
-		log.Debugf("adding %q: %q", front, back)
-
-		err = anki.Add(args["--add"].(string), front, back)
-		if err != nil {
-			log.Fatal(karma.Format(err, "unable to add %q: %q", front, back))
-		}
-
-		newWords++
 	}
 
 	fmt.Printf("%d new words\n", newWords)
@@ -149,6 +134,41 @@ func main() {
 			),
 		)
 	}
+}
+
+func addNewWords(target string, format string, deck string, nowStreak *int, newWords *int, anki *Anki) error {
+	if target == "" {
+		return nil
+	}
+
+	front, back, err := getFrontBack(target, format)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	found, err := anki.Search(front)
+	if err != nil {
+		log.Fatal(karma.Format(err, "unable to search %q", front))
+	}
+
+	if found {
+		log.Debugf("%q is already exists", front)
+		*nowStreak++
+		return nil
+	}
+
+	*nowStreak = 0
+
+	log.Debugf("adding %q: %q", front, back)
+
+	err = anki.Add(deck, front, back)
+	if err != nil {
+		log.Fatal(karma.Format(err, "unable to add %q: %q", front, back))
+	}
+
+	*newWords++
+
+	return nil
 }
 
 func getFrontBack(target string, format string) (string, string, error) {

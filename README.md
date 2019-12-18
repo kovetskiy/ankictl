@@ -11,6 +11,13 @@ ankictl -A <deck>
 
 There are 2 allowed formats for stdin: text (default) and json.
 
+```
+ankictl -A <deck> -i '["front","back"]'
+```
+
+If input from optional argument, input value in json format.
+Input is enclosed in ''.
+
 ## Format: text
 
 ```
