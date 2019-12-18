@@ -100,9 +100,8 @@ func main() {
 		newWords     = 0
 	)
 
-	if val := args["--input"]; val != nil {
+	if target, ok := args["--input"].(string); ok{
 		args["--format"] = "json"
-		target := val.(string)
 		err = addNewWords(target, args["--format"].(string), args["--add"].(string), &nowStreak, &newWords, anki)
 		if err != nil {
 			log.Fatal(karma.Format(err, "unable to add new words"))
