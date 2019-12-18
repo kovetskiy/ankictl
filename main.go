@@ -103,14 +103,20 @@ func main() {
 	if val := args["--input"]; val != nil {
 		args["--format"] = "json"
 		target := val.(string)
-		addNewWords(target, args["--format"].(string), args["--add"].(string), &nowStreak, &newWords, anki)
+		err = addNewWords(target, args["--format"].(string), args["--add"].(string), &nowStreak, &newWords, anki)
+		if err != nil {
+			log.Fatal(karma.Format(err, "unable to add new words"))
+		}
 
 	} else {
 		scanner := bufio.NewScanner(os.Stdin)
 		for scanner.Scan() {
 			target := scanner.Text()
 
-			addNewWords(target, args["--format"].(string), args["--add"].(string), &nowStreak, &newWords, anki)
+			err = addNewWords(target, args["--format"].(string), args["--add"].(string), &nowStreak, &newWords, anki)
+			if err != nil {
+				log.Fatal(karma.Format(err, "unable to add new words"))
+			}
 
 			if nowStreak == maxStreak {
 				log.Debugf("got streak of existing words, stopping")
