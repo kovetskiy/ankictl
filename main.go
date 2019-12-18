@@ -103,14 +103,14 @@ func main() {
 	if val := args["--input"]; val != nil {
 		args["--format"] = "json"
 		target := val.(string)
-		addNewWords(target, &nowStreak, &newWords, anki, args)
+		addNewWords(target, args["--format"].(string), args["--add"].(string), &nowStreak, &newWords, anki)
 
 	} else {
 		scanner := bufio.NewScanner(os.Stdin)
 		for scanner.Scan() {
 			target := scanner.Text()
 
-			addNewWords(target, &nowStreak, &newWords, anki, args)
+			addNewWords(target, args["--format"].(string), args["--add"].(string), &nowStreak, &newWords, anki)
 
 			if nowStreak == maxStreak {
 				log.Debugf("got streak of existing words, stopping")
@@ -132,12 +132,12 @@ func main() {
 	}
 }
 
-func addNewWords(target string, nowStreak *int, newWords *int, anki *Anki, args map[string]interface{}) (error) {
+func addNewWords(target string, format string, deck string, nowStreak *int, newWords *int, anki *Anki) (error) {
 	if target == "" {
 		return nil
 	}
 
-	front, back, err := getFrontBack(target, args["--format"].(string))
+	front, back, err := getFrontBack(target, format)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -157,7 +157,7 @@ func addNewWords(target string, nowStreak *int, newWords *int, anki *Anki, args 
 
 	log.Debugf("adding %q: %q", front, back)
 
-	err = anki.Add(args["--add"].(string), front, back)
+	err = anki.Add(deck, front, back)
 	if err != nil {
 		log.Fatal(karma.Format(err, "unable to add %q: %q", front, back))
 	}
