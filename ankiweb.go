@@ -29,8 +29,12 @@ const (
 )
 
 var (
-	reModelID    = regexp.MustCompile("editor.curModelID = \"([0-9]+)\";")
-	reTokenEdit  = regexp.MustCompile("editor.csrf_token2 = '([^']+)';")
+	// also known as mid
+	reModelID    = regexp.MustCompile(`"id": "([0-9]+)", "name": "Basic"`)
+
+	// some sort of long csrf token
+	reTokenEdit  = regexp.MustCompile(`anki.Editor\('([^']+)'`)
+
 	reTokenLogin = regexp.MustCompile(`name="csrf_token" value="([^"]+)`)
 	reItem       = regexp.MustCompile(`<td> ([^/]+)`)
 )
